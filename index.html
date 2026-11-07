@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Artem Mini Game</title>
+    <title>Платформер: Расти и Победи!</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #1e1e2f;
+            background-color: #1a1a2e;
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
@@ -21,9 +21,9 @@
         }
 
         #gameCanvas {
-            border: 4px solid #4e4e6a;
-            box-shadow: 0 0 25px rgba(0,0,0,0.7);
-            background-color: #28283d;
+            border: 4px solid #0f3460;
+            box-shadow: 0 0 25px rgba(0,0,0,0.8);
+            background-color: #16213e;
         }
 
         #ui {
@@ -39,7 +39,6 @@
             text-shadow: 2px 2px 0px #000;
         }
 
-        /* Экран меню / сообщения поверх игры */
         #menuScreen {
             position: absolute;
             top: 0;
@@ -56,39 +55,40 @@
         }
 
         #menuTitle {
-            font-size: 42px;
+            font-size: 40px;
             margin-bottom: 20px;
-            text-shadow: 3px 3px 0px #e74c3c;
+            color: #e94560;
+            text-shadow: 2px 2px 0px #000;
         }
 
         #menuSubtitle {
             font-size: 18px;
             margin-bottom: 30px;
             color: #b2bec3;
-            max-width: 500px;
-            line-height: 1.4;
+            max-width: 550px;
+            line-height: 1.5;
         }
 
         .btn {
             padding: 15px 35px;
             font-size: 22px;
             font-weight: bold;
-            background-color: #e74c3c;
+            background-color: #e94560;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             transition: 0.2s;
-            box-shadow: 0 5px 0 #c0392b;
+            box-shadow: 0 5px 0 #900c3f;
         }
 
         .btn:hover {
-            background-color: #ff5252;
+            background-color: #ff6b81;
         }
 
         .btn:active {
             transform: translateY(3px);
-            box-shadow: 0 2px 0 #c0392b;
+            box-shadow: 0 2px 0 #900c3f;
         }
     </style>
 </head>
@@ -97,14 +97,18 @@
     <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
         <div id="ui">
-            <div>Время: <span id="timer">250</span> сек</div>
-            <div>Счет: <span id="score">0</span></div>
+            <div>Время: <span id="timer">144</span> сек</div>
+            <div>Монеты: <span id="score">0</span></div>
+            <div>Уровень роста: <span id="growthLevel">1</span>x</div>
         </div>
 
-        <!-- Меню / Экраны победы и поражения -->
         <div id="menuScreen">
-            <div id="menuTitle">ХАРДКОРНЫЙ ПЛАТФОРМЕР</div>
-            <div id="menuSubtitle">Доберитесь до финиша справа за 250 секунд!<br>Остерегайтесь шипов и ходячих врагов.<br>Управление: Стрелки / A-D / Пробел (прыжок).</div>
+            <div id="menuTitle">РАСТИ И ПОБЕЖДАЙ!</div>
+            <div id="menuSubtitle">
+                Собирай монеты, чтобы становиться БОЛЬШИМ!<br>
+                Шипы и враги уменьшают ваш размер. Если наступить маленьким — поражение!<br>
+                Успей дойти до ФИНИША за 144 секунды!
+            </div>
             <button class="btn" id="actionBtn" onclick="startGame()">НАЧАТЬ ИГРУ</button>
         </div>
     </div>
@@ -114,87 +118,119 @@
         const ctx = canvas.getContext('2d');
         const timerElement = document.getElementById('timer');
         const scoreElement = document.getElementById('score');
+        const growthElement = document.getElementById('growthLevel');
         const menuScreen = document.getElementById('menuScreen');
         const menuTitle = document.getElementById('menuTitle');
         const menuSubtitle = document.getElementById('menuSubtitle');
         const actionBtn = document.getElementById('actionBtn');
 
-        // Игровые константы и параметры
         const GRAVITY = 0.75;
         const PLAYER_SPEED = 5.5;
         const JUMP_FORCE = 14.5;
-        const LEVEL_WIDTH = 3200; // Большая длинная карта с прокруткой вперед
+        const LEVEL_WIDTH = 4500;
 
         let cameraX = 0;
-        let timeLeft = 250;
+        let timeLeft = 144;
         let score = 0;
+        let growth = 1; // 1 = маленький, 2 = средний, 3 = гигант
         let gameActive = false;
         let timerInterval = null;
+        let invulnerableTimer = 0; // Защита после получения урона
 
-        // Игрок
+        let BASE_WIDTH = 30;
+        let BASE_HEIGHT = 42;
+
         let player = {
             x: 100,
             y: 400,
-            width: 32,
-            height: 48,
+            width: BASE_WIDTH,
+            height: BASE_HEIGHT,
             vx: 0,
             vy: 0,
             onGround: false
         };
 
-        // Длинный уровень: платформы, шипы, враги, монетки и финиш
         let platforms = [];
         let spikes = [];
         let enemies = [];
         let coins = [];
-        let finishLine = { x: 3000, y: 350, width: 40, height: 200 };
+        let finishLine = { x: 4200, y: 300, width: 50, height: 250 };
+
+        function updatePlayerSize() {
+            let oldHeight = player.height;
+            if (growth === 1) {
+                player.width = BASE_WIDTH;
+                player.height = BASE_HEIGHT;
+            } else if (growth === 2) {
+                player.width = BASE_WIDTH * 1.4;
+                player.height = BASE_HEIGHT * 1.4;
+            } else if (growth >= 3) {
+                player.width = BASE_WIDTH * 1.8;
+                player.height = BASE_HEIGHT * 1.8;
+            }
+            if (player.onGround) {
+                player.y -= (player.height - oldHeight);
+            }
+            growthElement.innerText = growth;
+        }
 
         function initLevel() {
+            growth = 1;
+            updatePlayerSize();
             player.x = 100;
             player.y = 400;
             player.vx = 0;
             player.vy = 0;
             cameraX = 0;
-            timeLeft = 250;
+            timeLeft = 144;
             score = 0;
+            invulnerableTimer = 0;
             scoreElement.innerText = score;
             timerElement.innerText = timeLeft;
 
-            // Генерация платформ (уровень уходит далеко вправо)
+            // Куча платформ
             platforms = [
-                { x: 0, y: 520, width: 900, height: 80, color: '#3d3d5c' },
-                { x: 1000, y: 440, width: 350, height: 30, color: '#3d3d5c' },
-                { x: 1450, y: 360, width: 250, height: 30, color: '#3d3d5c' },
-                { x: 1800, y: 480, width: 400, height: 30, color: '#3d3d5c' },
-                { x: 2300, y: 380, width: 250, height: 30, color: '#3d3d5c' },
-                { x: 2650, y: 460, width: 600, height: 140, color: '#3d3d5c' } // Финальная зона
+                { x: 0, y: 520, width: 800, height: 80 },
+                { x: 900, y: 450, width: 250, height: 30 },
+                { x: 1220, y: 380, width: 200, height: 30 },
+                { x: 1480, y: 310, width: 200, height: 30 },
+                { x: 1750, y: 460, width: 450, height: 30 },
+                { x: 2280, y: 390, width: 250, height: 30 },
+                { x: 2600, y: 320, width: 300, height: 30 },
+                { x: 2980, y: 440, width: 400, height: 30 },
+                { x: 3450, y: 370, width: 250, height: 30 },
+                { x: 3780, y: 480, width: 700, height: 120 }
             ];
 
             // Шипы
             spikes = [
-                { x: 600, y: 490, width: 40, height: 30 },
-                { x: 1150, y: 410, width: 40, height: 30 },
-                { x: 1900, y: 450, width: 40, height: 30 },
-                { x: 2400, y: 350, width: 40, height: 30 }
+                { x: 500, y: 490, width: 50, height: 30 },
+                { x: 1000, y: 420, width: 40, height: 30 },
+                { x: 1850, y: 430, width: 40, height: 30 },
+                { x: 2700, y: 290, width: 50, height: 30 },
+                { x: 3100, y: 410, width: 50, height: 30 },
+                { x: 3950, y: 450, width: 60, height: 30 }
             ];
 
-            // Враги (движущиеся из стороны в сторону)
+            // Враги
             enemies = [
-                { x: 400, y: 480, width: 36, height: 40, minX: 300, maxX: 700, speed: 2 },
-                { x: 1200, y: 400, width: 36, height: 40, minX: 1050, maxX: 1300, speed: 3 },
-                { x: 1950, y: 440, width: 36, height: 40, minX: 1850, maxX: 2150, speed: 2.5 }
+                { x: 400, y: 480, width: 35, height: 40, minX: 300, maxX: 650, speed: 2 },
+                { x: 1800, y: 420, width: 35, height: 40, minX: 1760, maxX: 2100, speed: 2.5 },
+                { x: 3020, y: 400, width: 35, height: 40, minX: 3000, maxX: 3300, speed: 3 }
             ];
 
-            // Монетки
-            coins = [
-                { x: 650, y: 430, radius: 12, collected: false },
-                { x: 1550, y: 300, radius: 12, collected: false },
-                { x: 2000, y: 420, radius: 12, collected: false },
-                { x: 2450, y: 320, radius: 12, collected: false }
-            ];
+            // МНОГО монет для роста!
+            coins = [];
+            for (let i = 0; i < 40; i++) {
+                coins.push({
+                    x: 250 + i * 100 + Math.sin(i) * 30,
+                    y: 250 + (i % 4) * 50,
+                    radius: 10,
+                    collected: false
+                });
+            }
         }
 
-        // Управление клавиатурой
         const keys = { right: false, left: false, up: false };
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
@@ -218,9 +254,21 @@
                 timeLeft--;
                 timerElement.innerText = timeLeft;
                 if (timeLeft <= 0) {
-                    gameOver("Время вышло!! Вы проходили долго!");
+                    gameOver("Время вышло! Уровень нужно проходить за 144 секунды!");
                 }
             }, 1000);
+        }
+
+        function hitHazard() {
+            if (invulnerableTimer > 0) return; // Пропуск урона при неуязвимости
+
+            if (growth > 1) {
+                growth--;
+                updatePlayerSize();
+                invulnerableTimer = 60; // 1 секунда неуязвимости (60 кадров)
+            } else {
+                gameOver("Вы наступили на шип или врага малым размером!");
+            }
         }
 
         function gameOver(message) {
@@ -236,7 +284,7 @@
             gameActive = false;
             clearInterval(timerInterval);
             menuTitle.innerText = "ПОБЕДА!!!";
-            menuSubtitle.innerText = `Уровень пройден! Ваш итоговый счет: ${score} очков.`;
+            menuSubtitle.innerText = `Вы успели пройти за ${144 - timeLeft} сек! Итоговый рост: ${growth}x. Собранные монеты: ${score}.`;
             actionBtn.innerText = "ИГРАТЬ ЕЩЕ РАЗ";
             menuScreen.style.display = 'flex';
         }
@@ -248,11 +296,11 @@
                    r1.y + r1.height > r2.y;
         }
 
-        // Основной игровой цикл
         function update() {
             if (!gameActive) return;
 
-            // Движение игрока
+            if (invulnerableTimer > 0) invulnerableTimer--;
+
             player.vx = 0;
             if (keys.right) player.vx = PLAYER_SPEED;
             if (keys.left) player.vx = -PLAYER_SPEED;
@@ -266,26 +314,19 @@
             player.x += player.vx;
             player.y += player.vy;
 
-            // Ограничения карты слева
             if (player.x < 0) player.x = 0;
 
-            // Проверка платформ (коллизии)
             player.onGround = false;
             platforms.forEach(p => {
                 if (rectIntersect(player, p)) {
-                    // Падение сверху на платформу
                     if (player.vy > 0 && player.y + player.height - player.vy <= p.y) {
                         player.y = p.y - player.height;
                         player.vy = 0;
                         player.onGround = true;
-                    }
-                    // Удар снизу
-                    else if (player.vy < 0 && player.y - player.vy >= p.y + p.height) {
+                    } else if (player.vy < 0 && player.y - player.vy >= p.y + p.height) {
                         player.y = p.y + p.height;
                         player.vy = 0;
-                    }
-                    // Удар сбоку
-                    else if (player.vx > 0) {
+                    } else if (player.vx > 0) {
                         player.x = p.x - player.width;
                     } else if (player.vx < 0) {
                         player.x = p.x + p.width;
@@ -293,50 +334,50 @@
                 }
             });
 
-            // Падение в пропасть
             if (player.y > canvas.height) {
-                gameOver("Вы упали!");
+                gameOver("Вы упали в пропасть!");
             }
 
-            // Движение врагов
+            // Враги
             enemies.forEach(e => {
                 e.x += e.speed;
-                if (e.x > e.maxX || e.x < e.minX) {
-                    e.speed *= -1; // Разворот врага
-                }
-                // Столкновение с врагом
+                if (e.x > e.maxX || e.x < e.minX) e.speed *= -1;
                 if (rectIntersect(player, e)) {
-                    gameOver("Вы упали!");
+                    hitHazard();
                 }
             });
 
-            // Столкновение с шипами
+            // Шипы
             spikes.forEach(s => {
                 if (rectIntersect(player, s)) {
-                    gameOver("Вы упали!");
+                    hitHazard();
                 }
             });
 
-            // Сбор монет
+            // Сбор монет -> РАЗВИТИЕ И РОСТ
             coins.forEach(c => {
                 if (!c.collected) {
                     let distX = (player.x + player.width/2) - c.x;
                     let distY = (player.y + player.height/2) - c.y;
                     let distance = Math.sqrt(distX * distX + distY * distY);
-                    if (distance < c.radius + player.width/3) {
+                    if (distance < c.radius + player.width/2) {
                         c.collected = true;
                         score += 100;
                         scoreElement.innerText = score;
+
+                        // Увеличение размера за каждые 5 монет
+                        if (score % 500 === 0 && growth < 3) {
+                            growth++;
+                            updatePlayerSize();
+                        }
                     }
                 }
             });
 
-            // Проверка финиша
             if (rectIntersect(player, finishLine)) {
                 gameWin();
             }
 
-            // Плавная прокрутка камеры за игроком (камера следует вперед)
             cameraX = player.x - 250;
             if (cameraX < 0) cameraX = 0;
             if (cameraX > LEVEL_WIDTH - canvas.width) cameraX = LEVEL_WIDTH - canvas.width;
@@ -346,24 +387,24 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
-            ctx.translate(-cameraX, 0); // Смещение экрана камеры
+            ctx.translate(-cameraX, 0);
 
-            // Отрисовка финишной двери
+            // Финиш
             ctx.fillStyle = '#f1c40f';
             ctx.fillRect(finishLine.x, finishLine.y, finishLine.width, finishLine.height);
-            ctx.fillStyle = '#fff';
-            ctx.font = "bold 16px Arial";
-            ctx.fillText("ФИНИШ", finishLine.x - 12, finishLine.y - 10);
+            ctx.fillStyle = '#000';
+            ctx.font = "bold 18px Arial";
+            ctx.fillText("ФИНИШ", finishLine.x + 5, finishLine.y - 10);
 
-            // Отрисовка платформ
+            // Платформы
             platforms.forEach(p => {
-                ctx.fillStyle = p.color;
+                ctx.fillStyle = '#0f3460';
                 ctx.fillRect(p.x, p.y, p.width, p.height);
             });
 
-            // Отрисовка шипов
+            // Шипы
             spikes.forEach(s => {
-                ctx.fillStyle = '#e74c3c';
+                ctx.fillStyle = '#e94560';
                 ctx.beginPath();
                 ctx.moveTo(s.x, s.y + s.height);
                 ctx.lineTo(s.x + s.width / 2, s.y);
@@ -372,33 +413,28 @@
                 ctx.closePath();
             });
 
-            // Отрисовка врагов
+            // Враги
             enemies.forEach(e => {
-                ctx.fillStyle = '#9b59b6';
+                ctx.fillStyle = '#e94560';
                 ctx.fillRect(e.x, e.y, e.width, e.height);
-                // Глаза врага
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(e.x + 6, e.y + 8, 6, 6);
-                ctx.fillRect(e.x + 22, e.y + 8, 6, 6);
             });
 
-            // Отрисовка монет
+            // Монеты
             coins.forEach(c => {
                 if (!c.collected) {
                     ctx.beginPath();
                     ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
                     ctx.fillStyle = '#f1c40f';
                     ctx.fill();
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#d4ac0d';
-                    ctx.stroke();
                     ctx.closePath();
                 }
             });
 
-            // Отрисовка игрока
-            ctx.fillStyle = '#2ecc71';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // Игрок (мигает, если защищен после урона)
+            if (invulnerableTimer % 10 < 5) {
+                ctx.fillStyle = growth === 3 ? '#e94560' : (growth === 2 ? '#f1c40f' : '#4ecca3');
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+            }
 
             ctx.restore();
         }
@@ -409,7 +445,6 @@
             requestAnimationFrame(loop);
         }
 
-        // Запуск игрового цикла
         loop();
     </script>
 </body>
