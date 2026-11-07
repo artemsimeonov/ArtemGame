@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Хардкорный Платформер</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1e1e2f;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+        }
+
+        #gameCanvas {
+            border: 4px solid #4e4e6a;
+            box-shadow: 0 0 25px rgba(0,0,0,0.7);
+            background-color: #28283d;
+        }
+
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+            display: flex;
+            gap: 30px;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* Экран меню / сообщения поверх игры */
+        #menuScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+
+        #menuTitle {
+            font-size: 42px;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 0px #e74c3c;
+        }
+
+        #menuSubtitle {
+            font-size: 18px;
+            margin-bottom: 30px;
+            color: #b2bec3;
+            max-width: 500px;
+            line-height: 1.4;
+        }
+
+        .btn {
+            padding: 15px 35px;
+            font-size: 22px;
+            font-weight: bold;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 5px 0 #c0392b;
+        }
+
+        .btn:hover {
+            background-color: #ff5252;
+        }
+
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div>Время: <span id="timer">250</span> сек</div>
+            <div>Счет: <span id="score">0</span></div>
+        </div>
+
+        <!-- Меню / Экраны победы и поражения -->
+        <div id="menuScreen">
+            <div id="menuTitle">ХАРДКОРНЫЙ ПЛАТФОРМЕР</div>
+            <div id="menuSubtitle">Доберитесь до финиша справа за 250 секунд!<br>Остерегайтесь шипов и ходячих врагов.<br>Управление: Стрелки / A-D / Пробел (прыжок).</div>
+            <button class="btn" id="actionBtn" onclick="startGame()">НАЧАТЬ ИГРУ</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const timerElement = document.getElementById('timer');
+        const scoreElement = document.getElementById('score');
+        const menuScreen = document.getElementById('menuScreen');
+        const menuTitle = document.getElementById('menuTitle');
+        const menuSubtitle = document.getElementById('menuSubtitle');
+        const actionBtn = document.getElementById('actionBtn');
+
+        // Игровые константы и параметры
+        const GRAVITY = 0.75;
+        const PLAYER_SPEED = 5.5;
+        const JUMP_FORCE = 14.5;
+        const LEVEL_WIDTH = 3200; // Большая длинная карта с прокруткой вперед
+
+        let cameraX = 0;
+        let timeLeft = 250;
+        let score = 0;
+        let gameActive = false;
+        let timerInterval = null;
+
+        // Игрок
+        let player = {
+            x: 100,
+            y: 400,
+            width: 32,
+            height: 48,
+            vx: 0,
+            vy: 0,
+            onGround: false
+        };
+
+        // Длинный уровень: платформы, шипы, враги, монетки и финиш
+        let platforms = [];
+        let spikes = [];
+        let enemies = [];
+        let coins = [];
+        let finishLine = { x: 3000, y: 350, width: 40, height: 200 };
+
+        function initLevel() {
+            player.x = 100;
+            player.y = 400;
+            player.vx = 0;
+            player.vy = 0;
+            cameraX = 0;
+            timeLeft = 250;
+            score = 0;
+            scoreElement.innerText = score;
+            timerElement.innerText = timeLeft;
+
+            // Генерация платформ (уровень уходит далеко вправо)
+            platforms = [
+                { x: 0, y: 520, width: 900, height: 80, color: '#3d3d5c' },
+                { x: 1000, y: 440, width: 350, height: 30, color: '#3d3d5c' },
+                { x: 1450, y: 360, width: 250, height: 30, color: '#3d3d5c' },
+                { x: 1800, y: 480, width: 400, height: 30, color: '#3d3d5c' },
+                { x: 2300, y: 380, width: 250, height: 30, color: '#3d3d5c' },
+                { x: 2650, y: 460, width: 600, height: 140, color: '#3d3d5c' } // Финальная зона
+            ];
+
+            // Шипы
+            spikes = [
+                { x: 600, y: 490, width: 40, height: 30 },
+                { x: 1150, y: 410, width: 40, height: 30 },
+                { x: 1900, y: 450, width: 40, height: 30 },
+                { x: 2400, y: 350, width: 40, height: 30 }
+            ];
+
+            // Враги (движущиеся из стороны в сторону)
+            enemies = [
+                { x: 400, y: 480, width: 36, height: 40, minX: 300, maxX: 700, speed: 2 },
+                { x: 1200, y: 400, width: 36, height: 40, minX: 1050, maxX: 1300, speed: 3 },
+                { x: 1950, y: 440, width: 36, height: 40, minX: 1850, maxX: 2150, speed: 2.5 }
+            ];
+
+            // Монетки
+            coins = [
+                { x: 650, y: 430, radius: 12, collected: false },
+                { x: 1550, y: 300, radius: 12, collected: false },
+                { x: 2000, y: 420, radius: 12, collected: false },
+                { x: 2450, y: 320, radius: 12, collected: false }
+            ];
+        }
+
+        // Управление клавиатурой
+        const keys = { right: false, left: false, up: false };
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = true;
+        });
+        window.addEventListener('keyup', e => {
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = false;
+        });
+
+        function startGame() {
+            initLevel();
+            menuScreen.style.display = 'none';
+            gameActive = true;
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft--;
+                timerElement.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    gameOver("Время вышло!! Вы проходили долго!");
+                }
+            }, 1000);
+        }
+
+        function gameOver(message) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            menuTitle.innerText = "ПОРАЖЕНИЕ";
+            menuSubtitle.innerText = message;
+            actionBtn.innerText = "НАЧАТЬ ЗАНОВО";
+            menuScreen.style.display = 'flex';
+        }
+
+        function gameWin() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            menuTitle.innerText = "ПОБЕДА!!!";
+            menuSubtitle.innerText = `Уровень пройден! Ваш итоговый счет: ${score} очков.`;
+            actionBtn.innerText = "ИГРАТЬ ЕЩЕ РАЗ";
+            menuScreen.style.display = 'flex';
+        }
+
+        function rectIntersect(r1, r2) {
+            return r1.x < r2.x + r2.width &&
+                   r1.x + r1.width > r2.x &&
+                   r1.y < r2.y + r2.height &&
+                   r1.y + r1.height > r2.y;
+        }
+
+        // Основной игровой цикл
+        function update() {
+            if (!gameActive) return;
+
+            // Движение игрока
+            player.vx = 0;
+            if (keys.right) player.vx = PLAYER_SPEED;
+            if (keys.left) player.vx = -PLAYER_SPEED;
+
+            if (keys.up && player.onGround) {
+                player.vy = -JUMP_FORCE;
+                player.onGround = false;
+            }
+
+            player.vy += GRAVITY;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Ограничения карты слева
+            if (player.x < 0) player.x = 0;
+
+            // Проверка платформ (коллизии)
+            player.onGround = false;
+            platforms.forEach(p => {
+                if (rectIntersect(player, p)) {
+                    // Падение сверху на платформу
+                    if (player.vy > 0 && player.y + player.height - player.vy <= p.y) {
+                        player.y = p.y - player.height;
+                        player.vy = 0;
+                        player.onGround = true;
+                    }
+                    // Удар снизу
+                    else if (player.vy < 0 && player.y - player.vy >= p.y + p.height) {
+                        player.y = p.y + p.height;
+                        player.vy = 0;
+                    }
+                    // Удар сбоку
+                    else if (player.vx > 0) {
+                        player.x = p.x - player.width;
+                    } else if (player.vx < 0) {
+                        player.x = p.x + p.width;
+                    }
+                }
+            });
+
+            // Падение в пропасть
+            if (player.y > canvas.height) {
+                gameOver("Вы упали!");
+            }
+
+            // Движение врагов
+            enemies.forEach(e => {
+                e.x += e.speed;
+                if (e.x > e.maxX || e.x < e.minX) {
+                    e.speed *= -1; // Разворот врага
+                }
+                // Столкновение с врагом
+                if (rectIntersect(player, e)) {
+                    gameOver("Вы упали!");
+                }
+            });
+
+            // Столкновение с шипами
+            spikes.forEach(s => {
+                if (rectIntersect(player, s)) {
+                    gameOver("Вы упали!");
+                }
+            });
+
+            // Сбор монет
+            coins.forEach(c => {
+                if (!c.collected) {
+                    let distX = (player.x + player.width/2) - c.x;
+                    let distY = (player.y + player.height/2) - c.y;
+                    let distance = Math.sqrt(distX * distX + distY * distY);
+                    if (distance < c.radius + player.width/3) {
+                        c.collected = true;
+                        score += 100;
+                        scoreElement.innerText = score;
+                    }
+                }
+            });
+
+            // Проверка финиша
+            if (rectIntersect(player, finishLine)) {
+                gameWin();
+            }
+
+            // Плавная прокрутка камеры за игроком (камера следует вперед)
+            cameraX = player.x - 250;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > LEVEL_WIDTH - canvas.width) cameraX = LEVEL_WIDTH - canvas.width;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-cameraX, 0); // Смещение экрана камеры
+
+            // Отрисовка финишной двери
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillRect(finishLine.x, finishLine.y, finishLine.width, finishLine.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = "bold 16px Arial";
+            ctx.fillText("ФИНИШ", finishLine.x - 12, finishLine.y - 10);
+
+            // Отрисовка платформ
+            platforms.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+            });
+
+            // Отрисовка шипов
+            spikes.forEach(s => {
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y + s.height);
+                ctx.lineTo(s.x + s.width / 2, s.y);
+                ctx.lineTo(s.x + s.width, s.y + s.height);
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // Отрисовка врагов
+            enemies.forEach(e => {
+                ctx.fillStyle = '#9b59b6';
+                ctx.fillRect(e.x, e.y, e.width, e.height);
+                // Глаза врага
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(e.x + 6, e.y + 8, 6, 6);
+                ctx.fillRect(e.x + 22, e.y + 8, 6, 6);
+            });
+
+            // Отрисовка монет
+            coins.forEach(c => {
+                if (!c.collected) {
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#d4ac0d';
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            });
+
+            // Отрисовка игрока
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Запуск игрового цикла
+        loop();
+    </script>
+</body>
+</html>
