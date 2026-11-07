@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Артём Игра</title>
+    <title>АРТЁМ ИГРА</title>
+
+    <!-- ARTEM GAME -->
+    <meta property="og:title" content="АРТЁМ ИГРА — Расти и побеждай!">
+    <meta property="og:description" content="Игра, где нужно собирать монетки и расти большим. От компании Akerent. Пройди за 144 секунды!">
+    <meta property="og:type" content="website">
+
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #1a1a2e;
-            font-family: Arial, sans-serif;
+            background-color: #0f1026;
+            font-family: 'Arial Black', sans-serif;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -23,8 +29,8 @@
         }
 
         #gameCanvas {
-            border: 4px solid #0f3460;
-            box-shadow: 0 0 25px rgba(0,0,0,0.8);
+            border: 4px solid #e94560;
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.4);
             background-color: #16213e;
             display: block;
         }
@@ -34,22 +40,22 @@
             top: 15px;
             left: 20px;
             color: #ffffff;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             pointer-events: none;
             display: flex;
-            gap: 30px;
-            text-shadow: 2px 2px 0px #000;
+            gap: 25px;
+            text-shadow: 2px 2px 4px #000;
         }
 
-        /* Экран меню */
+        /* Стильная игровая обложка */
         #menuScreen {
             position: absolute;
             top: 0;
             left: 0;
             width: 800px;
             height: 600px;
-            background: rgba(0, 0, 0, 0.85);
+            background: linear-gradient(135deg, rgba(15, 16, 38, 0.95), rgba(22, 33, 62, 0.95));
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -57,40 +63,66 @@
             color: white;
             text-align: center;
             z-index: 10;
+            border: 4px solid #e94560;
+            box-sizing: border-box;
         }
 
+        /* Заголовок АРТЁМ ИГРА */
         #menuTitle {
-            font-size: 40px;
-            margin-bottom: 20px;
-            color: #e94560;
-            text-shadow: 2px 2px 0px #000;
+            font-size: 52px;
+            margin-bottom: 5px;
+            color: #f1c40f;
+            text-shadow: 0 0 15px #f1c40f, 4px 4px 0px #e94560, 6px 6px 0px #000;
+            letter-spacing: 2px;
+        }
+
+        /* Авторство Akerent */
+        #companyName {
+            font-size: 16px;
+            color: #4ecca3;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+            text-shadow: 1px 1px 2px #000;
         }
 
         #menuSubtitle {
-            font-size: 18px;
+            font-size: 17px;
             margin-bottom: 30px;
-            color: #b2bec3;
+            color: #dcdde1;
             max-width: 550px;
-            line-height: 1.5;
+            line-height: 1.6;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 2px dashed #e94560;
+            font-family: Arial, sans-serif;
         }
 
         .btn {
-            padding: 15px 35px;
-            font-size: 22px;
+            padding: 16px 45px;
+            font-size: 24px;
             font-weight: bold;
-            background-color: #e94560;
+            background: linear-gradient(to bottom, #e94560, #900c3f);
             color: white;
-            border: none;
-            border-radius: 8px;
+            border: 2px solid #fff;
+            border-radius: 12px;
             cursor: pointer;
-            transition: 0.2s;
-            box-shadow: 0 5px 0 #900c3f;
+            transition: 0.15s;
+            box-shadow: 0 6px 0 #5c0827, 0 10px 20px rgba(0,0,0,0.5);
+            font-family: 'Arial Black', sans-serif;
         }
 
-        .btn:hover { background-color: #ff6b81; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #900c3f; }
+        .btn:hover {
+            background: linear-gradient(to bottom, #ff6b81, #e94560);
+            transform: translateY(-2px);
+        }
 
-        /* Кнопки-стрелки управления на экране */
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #5c0827;
+        }
+
+        /* Кнопки-стрелки управления */
         #controls {
             display: flex;
             justify-content: space-between;
@@ -106,9 +138,9 @@
         .touch-btn {
             width: 70px;
             height: 70px;
-            background-color: #0f3460;
+            background-color: #16213e;
             color: white;
-            font-size: 30px;
+            font-size: 28px;
             font-weight: bold;
             border: 3px solid #e94560;
             border-radius: 15px;
@@ -117,17 +149,17 @@
             align-items: center;
             cursor: pointer;
             touch-action: manipulation;
-            box-shadow: 0 4px 0 #091d36;
+            box-shadow: 0 4px 0 #0f1026;
         }
 
         .touch-btn:active {
             background-color: #e94560;
             transform: translateY(3px);
-            box-shadow: 0 1px 0 #091d36;
+            box-shadow: 0 1px 0 #0f1026;
         }
 
         .jump-btn {
-            width: 140px;
+            width: 150px;
             background-color: #e94560;
             border-color: #ff6b81;
         }
@@ -143,18 +175,19 @@
             <div>Рост: <span id="growthLevel">1</span>x</div>
         </div>
 
+        <!-- ИГРОВАЯ ОБЛОЖКА -->
         <div id="menuScreen">
-            <div id="menuTitle">РАСТИ И ПОБЕЖДАЙ!</div>
+            <div id="menuTitle">АРТЁМ ИГРА</div>
+            <div id="companyName">ОТ КОМПАНИИ AKERENT</div>
             <div id="menuSubtitle">
-                Собирай монеты, чтобы становиться БОЛЬШИМ!<br>
-                Шипы и враги уменьшают ваш размер. Если наступить маленьким — поражение!<br>
-                Успей дойти до ФИНИША!
+                Игра, где нужно собирать монетки и расти большим!<br>
+                Остерегайся шипов и врагов — они уменьшают твой размер.<br>
+                Успей дойти до ФИНИША за 144 секунды!
             </div>
             <button class="btn" id="actionBtn" onclick="startGame()">НАЧАТЬ ИГРУ</button>
         </div>
     </div>
 
-    <!-- Стрелки управления под экраном -->
     <div id="controls">
         <div class="btn-group">
             <div class="touch-btn" id="btnLeft">◄</div>
@@ -279,7 +312,6 @@
             }
         }
 
-        // Управление (Клавиатура + Накрашенные Кнопки)
         const keys = { right: false, left: false, up: false };
 
         window.addEventListener('keydown', e => {
@@ -293,7 +325,6 @@
             if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = false;
         });
 
-        // Настройка кнопок на экране
         const bindTouch = (id, keyName) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); keys[keyName] = true; };
@@ -333,7 +364,7 @@
                 updatePlayerSize();
                 invulnerableTimer = 60;
             } else {
-                gameOver("Вас убил враг, вы наступили на шип или вы упали.");
+                gameOver("Вы наступили на шип или врага малым размером!");
             }
         }
 
@@ -341,6 +372,7 @@
             gameActive = false;
             clearInterval(timerInterval);
             menuTitle.innerText = "ПОРАЖЕНИЕ";
+            document.getElementById('companyName').innerText = "";
             menuSubtitle.innerText = message;
             actionBtn.innerText = "НАЧАТЬ ЗАНОВО";
             menuScreen.style.display = 'flex';
@@ -350,6 +382,7 @@
             gameActive = false;
             clearInterval(timerInterval);
             menuTitle.innerText = "ПОБЕДА!!!";
+            document.getElementById('companyName').innerText = "ОТ КОМПАНИИ AKERENT";
             menuSubtitle.innerText = `Вы успели пройти за ${144 - timeLeft} сек! Итоговый рост: ${growth}x. Собранные монеты: ${score}.`;
             actionBtn.innerText = "ИГРАТЬ ЕЩЕ РАЗ";
             menuScreen.style.display = 'flex';
@@ -460,7 +493,7 @@
 
             // Платформы
             platforms.forEach(p => {
-                ctx.fillStyle = '#0f3460';
+                ctx.fillStyle = '#16213e';
                 ctx.fillRect(p.x, p.y, p.width, p.height);
             });
 
