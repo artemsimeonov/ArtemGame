@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Платформер: Расти и Победи!</title>
+    <title>Артём Игра</title>
     <style>
         body {
             margin: 0;
@@ -11,9 +11,11 @@
             background-color: #1a1a2e;
             font-family: Arial, sans-serif;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            user-select: none;
         }
 
         #gameContainer {
@@ -24,6 +26,7 @@
             border: 4px solid #0f3460;
             box-shadow: 0 0 25px rgba(0,0,0,0.8);
             background-color: #16213e;
+            display: block;
         }
 
         #ui {
@@ -39,6 +42,7 @@
             text-shadow: 2px 2px 0px #000;
         }
 
+        /* Экран меню */
         #menuScreen {
             position: absolute;
             top: 0;
@@ -52,6 +56,7 @@
             align-items: center;
             color: white;
             text-align: center;
+            z-index: 10;
         }
 
         #menuTitle {
@@ -82,13 +87,49 @@
             box-shadow: 0 5px 0 #900c3f;
         }
 
-        .btn:hover {
-            background-color: #ff6b81;
+        .btn:hover { background-color: #ff6b81; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #900c3f; }
+
+        /* Кнопки-стрелки управления на экране */
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            width: 800px;
+            margin-top: 15px;
         }
 
-        .btn:active {
+        .btn-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .touch-btn {
+            width: 70px;
+            height: 70px;
+            background-color: #0f3460;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            border: 3px solid #e94560;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            box-shadow: 0 4px 0 #091d36;
+        }
+
+        .touch-btn:active {
+            background-color: #e94560;
             transform: translateY(3px);
-            box-shadow: 0 2px 0 #900c3f;
+            box-shadow: 0 1px 0 #091d36;
+        }
+
+        .jump-btn {
+            width: 140px;
+            background-color: #e94560;
+            border-color: #ff6b81;
         }
     </style>
 </head>
@@ -99,7 +140,7 @@
         <div id="ui">
             <div>Время: <span id="timer">144</span> сек</div>
             <div>Монеты: <span id="score">0</span></div>
-            <div>Уровень роста: <span id="growthLevel">1</span>x</div>
+            <div>Рост: <span id="growthLevel">1</span>x</div>
         </div>
 
         <div id="menuScreen">
@@ -107,9 +148,20 @@
             <div id="menuSubtitle">
                 Собирай монеты, чтобы становиться БОЛЬШИМ!<br>
                 Шипы и враги уменьшают ваш размер. Если наступить маленьким — поражение!<br>
-                Успей дойти до ФИНИША за 144 секунды!
+                Успей дойти до ФИНИША!
             </div>
             <button class="btn" id="actionBtn" onclick="startGame()">НАЧАТЬ ИГРУ</button>
+        </div>
+    </div>
+
+    <!-- Стрелки управления под экраном -->
+    <div id="controls">
+        <div class="btn-group">
+            <div class="touch-btn" id="btnLeft">◄</div>
+            <div class="touch-btn" id="btnRight">►</div>
+        </div>
+        <div class="btn-group">
+            <div class="touch-btn jump-btn" id="btnJump">ПРЫЖОК ▲</div>
         </div>
     </div>
 
@@ -132,10 +184,10 @@
         let cameraX = 0;
         let timeLeft = 144;
         let score = 0;
-        let growth = 1; // 1 = маленький, 2 = средний, 3 = гигант
+        let growth = 1;
         let gameActive = false;
         let timerInterval = null;
-        let invulnerableTimer = 0; // Защита после получения урона
+        let invulnerableTimer = 0;
 
         let BASE_WIDTH = 30;
         let BASE_HEIGHT = 42;
@@ -188,7 +240,6 @@
             scoreElement.innerText = score;
             timerElement.innerText = timeLeft;
 
-            // Куча платформ
             platforms = [
                 { x: 0, y: 520, width: 800, height: 80 },
                 { x: 900, y: 450, width: 250, height: 30 },
@@ -202,7 +253,6 @@
                 { x: 3780, y: 480, width: 700, height: 120 }
             ];
 
-            // Шипы
             spikes = [
                 { x: 500, y: 490, width: 50, height: 30 },
                 { x: 1000, y: 420, width: 40, height: 30 },
@@ -212,14 +262,12 @@
                 { x: 3950, y: 450, width: 60, height: 30 }
             ];
 
-            // Враги
             enemies = [
                 { x: 400, y: 480, width: 35, height: 40, minX: 300, maxX: 650, speed: 2 },
                 { x: 1800, y: 420, width: 35, height: 40, minX: 1760, maxX: 2100, speed: 2.5 },
                 { x: 3020, y: 400, width: 35, height: 40, minX: 3000, maxX: 3300, speed: 3 }
             ];
 
-            // МНОГО монет для роста!
             coins = [];
             for (let i = 0; i < 40; i++) {
                 coins.push({
@@ -231,7 +279,9 @@
             }
         }
 
+        // Управление (Клавиатура + Накрашенные Кнопки)
         const keys = { right: false, left: false, up: false };
+
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
             if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
@@ -242,6 +292,22 @@
             if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
             if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = false;
         });
+
+        // Настройка кнопок на экране
+        const bindTouch = (id, keyName) => {
+            const btn = document.getElementById(id);
+            const start = (e) => { e.preventDefault(); keys[keyName] = true; };
+            const end = (e) => { e.preventDefault(); keys[keyName] = false; };
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            btn.addEventListener('touchstart', start);
+            btn.addEventListener('touchend', end);
+        };
+
+        bindTouch('btnLeft', 'left');
+        bindTouch('btnRight', 'right');
+        bindTouch('btnJump', 'up');
 
         function startGame() {
             initLevel();
@@ -260,14 +326,14 @@
         }
 
         function hitHazard() {
-            if (invulnerableTimer > 0) return; // Пропуск урона при неуязвимости
+            if (invulnerableTimer > 0) return;
 
             if (growth > 1) {
                 growth--;
                 updatePlayerSize();
-                invulnerableTimer = 60; // 1 секунда неуязвимости (60 кадров)
+                invulnerableTimer = 60;
             } else {
-                gameOver("Вы наступили на шип или врага малым размером!");
+                gameOver("Вас убил враг, вы наступили на шип или вы упали.");
             }
         }
 
@@ -338,7 +404,6 @@
                 gameOver("Вы упали в пропасть!");
             }
 
-            // Враги
             enemies.forEach(e => {
                 e.x += e.speed;
                 if (e.x > e.maxX || e.x < e.minX) e.speed *= -1;
@@ -347,14 +412,12 @@
                 }
             });
 
-            // Шипы
             spikes.forEach(s => {
                 if (rectIntersect(player, s)) {
                     hitHazard();
                 }
             });
 
-            // Сбор монет -> РАЗВИТИЕ И РОСТ
             coins.forEach(c => {
                 if (!c.collected) {
                     let distX = (player.x + player.width/2) - c.x;
@@ -365,7 +428,6 @@
                         score += 100;
                         scoreElement.innerText = score;
 
-                        // Увеличение размера за каждые 5 монет
                         if (score % 500 === 0 && growth < 3) {
                             growth++;
                             updatePlayerSize();
@@ -430,7 +492,7 @@
                 }
             });
 
-            // Игрок (мигает, если защищен после урона)
+            // Игрок
             if (invulnerableTimer % 10 < 5) {
                 ctx.fillStyle = growth === 3 ? '#e94560' : (growth === 2 ? '#f1c40f' : '#4ecca3');
                 ctx.fillRect(player.x, player.y, player.width, player.height);
