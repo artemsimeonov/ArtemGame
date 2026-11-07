@@ -5,9 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>АРТЁМ ИГРА — Расти и побеждай!</title>
 
+    <!-- ===== НАЧАЛО БЛОКА ОБЛОЖКИ И ПРЕВЬЮ ===== -->
     <meta property="og:title" content="АРТЁМ ИГРА — Расти и побеждай!">
     <meta property="og:description" content="Игра, где нужно собирать монетки и расти большим. От компании Akerent. Пройди за 144 секунды!">
     <meta property="og:type" content="website">
+    
+    <!-- Ссылка на вашу картинку cabos.png (замените ВАШ-ЛОГИН и ИМЯ-РЕПОЗИТОРИЯ) -->
+    <meta property="og:image" content="https://raw.githubusercontent.com/artemsimeonov/ArtemGame/main/cabos.png">
+    <!-- ===== КОНЕЦ БЛОКА ОБЛОЖКИ И ПРЕВЬЮ ===== -->
+
+    <style>
+        /* Здесь начинаются стили игры (body, #gameCanvas и т.д.) */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0f1026;
+            font-family: 'Arial Black', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
+        /* ... остальные стили ... */
 
     <style>
         body {
@@ -47,6 +68,7 @@
             text-shadow: 2px 2px 4px #000;
         }
 
+        /* Экран обложки / меню */
         #menuScreen {
             position: absolute;
             top: 0;
@@ -118,6 +140,7 @@
             box-shadow: 0 2px 0 #5c0827;
         }
 
+        /* Кнопки управления */
         #controls {
             display: flex;
             justify-content: space-between;
@@ -217,8 +240,8 @@
         let gameActive = false;
         let timerInterval = null;
         
-        let invulnerableTimer = 0; // Бессмертие от щита или после урона
-        let speedBuffTimer = 0;    // Ускорение
+        let invulnerableTimer = 0;
+        let speedBuffTimer = 0;
 
         let BASE_WIDTH = 30;
         let BASE_HEIGHT = 42;
@@ -237,8 +260,8 @@
         let spikes = [];
         let enemies = [];
         let coins = [];
-        let powerUps = []; // Ускорения и Щиты
-        let finishPipe = { x: 4700, y: 320, width: 60, height: 200 }; // Труба на финише
+        let powerUps = [];
+        let finishPipe = { x: 4700, y: 320, width: 60, height: 200 };
 
         function updatePlayerSize() {
             let oldHeight = player.height;
@@ -274,7 +297,6 @@
             timerElement.innerText = timeLeft;
             buffStatusElement.innerText = "Нет";
 
-            // Разнообразные платформы
             platforms = [
                 { x: 0, y: 520, width: 700, height: 80 },
                 { x: 800, y: 440, width: 220, height: 30 },
@@ -290,7 +312,6 @@
                 { x: 4250, y: 380, width: 750, height: 220 }
             ];
 
-            // Шипы
             spikes = [
                 { x: 450, y: 490, width: 40, height: 30 },
                 { x: 900, y: 410, width: 40, height: 30 },
@@ -301,7 +322,6 @@
                 { x: 4000, y: 440, width: 50, height: 30 }
             ];
 
-            // Враги
             enemies = [
                 { x: 300, y: 480, width: 35, height: 40, minX: 150, maxX: 600, speed: 2 },
                 { x: 1750, y: 290, width: 35, height: 40, minX: 1710, maxX: 1880, speed: 2.5 },
@@ -309,7 +329,6 @@
                 { x: 3900, y: 430, width: 35, height: 40, minX: 3870, maxX: 4120, speed: 2.5 }
             ];
 
-            // Множество монеток
             coins = [];
             for (let i = 0; i < 45; i++) {
                 coins.push({
@@ -320,7 +339,6 @@
                 });
             }
 
-            // Бонусы (Ускорение 'speed' и Щит/Бессмертие 'shield')
             powerUps = [
                 { x: 880, y: 390, type: 'speed', width: 25, height: 25, collected: false },
                 { x: 1760, y: 280, type: 'shield', width: 25, height: 25, collected: false },
@@ -371,7 +389,6 @@
                 if (speedBuffTimer > 0) speedBuffTimer--;
                 if (invulnerableTimer > 0) invulnerableTimer--;
 
-                // Обновление текста баффов
                 let buffsText = [];
                 if (speedBuffTimer > 0) buffsText.push(`⚡ Ускорение (${speedBuffTimer}с)`);
                 if (invulnerableTimer > 0) buffsText.push(`🛡️ Щит (${invulnerableTimer}с)`);
@@ -384,12 +401,12 @@
         }
 
         function hitHazard() {
-            if (invulnerableTimer > 0) return; // Игрок под щитом / бессмертен
+            if (invulnerableTimer > 0) return;
 
             if (growth > 1) {
                 growth--;
                 updatePlayerSize();
-                invulnerableTimer = 2; // Кратковременная неуязвимость после получения урона
+                invulnerableTimer = 2;
             } else {
                 gameOver("Вы наступили на шип или врага малым размером!");
             }
@@ -464,7 +481,6 @@
                 gameOver("Вы упали в пропасть!");
             }
 
-            // Враги
             enemies.forEach(e => {
                 e.x += e.speed;
                 if (e.x > e.maxX || e.x < e.minX) e.speed *= -1;
@@ -473,14 +489,12 @@
                 }
             });
 
-            // Шипы
             spikes.forEach(s => {
                 if (rectIntersect(player, s)) {
                     hitHazard();
                 }
             });
 
-            // Монеты
             coins.forEach(c => {
                 if (!c.collected) {
                     let distX = (player.x + player.width/2) - c.x;
@@ -499,19 +513,17 @@
                 }
             });
 
-            // Подбор усилений (Ускорение / Щит)
             powerUps.forEach(p => {
                 if (!p.collected && rectIntersect(player, p)) {
                     p.collected = true;
                     if (p.type === 'speed') {
-                        speedBuffTimer = 10; // 10 секунд ускорения
+                        speedBuffTimer = 10;
                     } else if (p.type === 'shield') {
-                        invulnerableTimer = 10; // 10 секунд бессмертия / щита
+                        invulnerableTimer = 10;
                     }
                 }
             });
 
-            // Попадание в трубу (Финиш)
             if (rectIntersect(player, finishPipe)) {
                 gameWin();
             }
@@ -527,10 +539,9 @@
             ctx.save();
             ctx.translate(-cameraX, 0);
 
-            // Отрисовка Зеленой Трубы (Финиш)
+            // Труба (Финиш)
             ctx.fillStyle = '#27ae60';
             ctx.fillRect(finishPipe.x, finishPipe.y, finishPipe.width, finishPipe.height);
-            // Шляпа трубы
             ctx.fillRect(finishPipe.x - 8, finishPipe.y, finishPipe.width + 16, 35);
             ctx.fillStyle = '#fff';
             ctx.font = "bold 15px Arial";
@@ -573,7 +584,7 @@
                 }
             });
 
-            // Усиления на карте
+            // Усиления
             powerUps.forEach(p => {
                 if (!p.collected) {
                     ctx.fillStyle = p.type === 'speed' ? '#3498db' : '#2ecc71';
@@ -584,7 +595,7 @@
                 }
             });
 
-            // Отрисовка игрока (подсветка при щите)
+            // Подсветка при бессмертии / щите
             if (invulnerableTimer > 0) {
                 ctx.strokeStyle = '#2ecc71';
                 ctx.lineWidth = 4;
